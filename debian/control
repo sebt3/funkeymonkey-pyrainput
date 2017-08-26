@@ -1,0 +1,15 @@
+Source: funkeymonkey-pyrainput
+Section: unknown
+Priority: extra
+Maintainer: Sébastien Huss <sebastien.huss@gmail.com>
+Build-Depends: cmake, debhelper (>=9), funkeymonkey-dev
+Standards-Version: 3.9.8
+Homepage: https://github.com/sebt3/funkeymonkey-pyrainput
+
+Package: funkeymonkey-pyrainput
+Architecture: any
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: A module for FunKey-MonKey that handle the Pyra input system
+ A module for FunKey-MonKey that handle the Pyra input system
+
