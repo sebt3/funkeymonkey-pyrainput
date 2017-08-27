@@ -1,0 +1,13 @@
+[Unit]
+Description=Pyra Input Deamon (funkeymonkey)
+After=network.target
+
+[Service]
+ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/funkeymonkey -g -p @CMAKE_INSTALL_PREFIX@/lib/funkeymonkey/libpyrainput.so -m "pyra-gpio-keys@1" -m "tca8418" -m "nub" config=/etc/pyrainput.cfg
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=pyrainput.service
