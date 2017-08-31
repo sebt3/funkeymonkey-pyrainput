@@ -164,8 +164,8 @@ void init(char const** argv, unsigned int argc) {
 	});
 	//TODO: make the alt mapping configurable
 	global.behaviors->altmap(KEY_ESC,	&global.FnPressed, KEY_ESC,	KEY_SYSRQ);
-	//global.behaviors->altmap(KEY_PAUSE,	&global.FnPressed, KEY_PAUSE,	);
-	//global.behaviors->altmap(KEY_BRIGHTNESSUP,	&global.FnPressed, KEY_BRIGHTNESSUP,	KEY_BRIGHTNESSDOWN);
+	global.behaviors->altmap(KEY_PAUSE,	&global.FnPressed, KEY_PAUSE,	KEY_SCALE);	// Here (119->120)
+	global.behaviors->altmap(KEY_BRIGHTNESSUP,	&global.FnPressed, KEY_BRIGHTNESSUP,	KEY_BRIGHTNESSDOWN);
 	global.behaviors->altmap(KEY_F11,	&global.FnPressed, KEY_F11,	KEY_F12);
 	global.behaviors->altmap(KEY_1,		&global.FnPressed, KEY_1,	KEY_F1);
 	global.behaviors->altmap(KEY_2,		&global.FnPressed, KEY_2,	KEY_F2);
@@ -178,26 +178,26 @@ void init(char const** argv, unsigned int argc) {
 	global.behaviors->altmap(KEY_9,		&global.FnPressed, KEY_9,	KEY_F9);
 	global.behaviors->altmap(KEY_0,		&global.FnPressed, KEY_0,	KEY_F10);
 	global.behaviors->altmap(KEY_TAB,	&global.FnPressed, KEY_TAB,	KEY_CAPSLOCK);
-	//global.behaviors->altmap(KEY_Q,		&global.FnPressed, KEY_Q,	);
-	//global.behaviors->altmap(KEY_W,		&global.FnPressed, KEY_W,	);
-	//global.behaviors->altmap(KEY_E,		&global.FnPressed, KEY_E,	KEY_EURO); //Not working
-	//global.behaviors->altmap(KEY_R,		&global.FnPressed, KEY_R,	);
-	//global.behaviors->altmap(KEY_T,		&global.FnPressed, KEY_T,	);
-	//global.behaviors->altmap(KEY_Y,		&global.FnPressed, KEY_Y,	);
-	//global.behaviors->altmap(KEY_U,		&global.FnPressed, KEY_U,	);
-	//global.behaviors->altmap(KEY_I,		&global.FnPressed, KEY_I,	);
-	//global.behaviors->altmap(KEY_O,		&global.FnPressed, KEY_O,	);
-	//global.behaviors->altmap(KEY_P,		&global.FnPressed, KEY_P,	);
-	//global.behaviors->altmap(KEY_APOSTROPHE,	&global.FnPressed, KEY_APOSTROPHE,	);
-	//global.behaviors->altmap(KEY_A,		&global.FnPressed, KEY_A,	);
-	//global.behaviors->altmap(KEY_S,		&global.FnPressed, KEY_S,	);
-	//global.behaviors->altmap(KEY_D,		&global.FnPressed, KEY_D,	);
-	//global.behaviors->altmap(KEY_F,		&global.FnPressed, KEY_F,	);
-	//global.behaviors->altmap(KEY_G,		&global.FnPressed, KEY_G,	);
-	//global.behaviors->altmap(KEY_H,		&global.FnPressed, KEY_H,	);
-	//global.behaviors->altmap(KEY_J,		&global.FnPressed, KEY_J,	);
-	//global.behaviors->altmap(KEY_K,		&global.FnPressed, KEY_K,	);
-	//global.behaviors->altmap(KEY_L,		&global.FnPressed, KEY_L,	);
+	global.behaviors->altmap(KEY_Q,		&global.FnPressed, KEY_Q,	KEY_MACRO);			// I120 // ok
+	global.behaviors->altmap(KEY_W,		&global.FnPressed, KEY_W,	KEY_KPCOMMA);			// I129 // ok
+	global.behaviors->altmap(KEY_E,		&global.FnPressed, KEY_E,	KEY_SETUP);			// I149 // ok
+	global.behaviors->altmap(KEY_R,		&global.FnPressed, KEY_R,	KEY_DELETEFILE);		// I154 // ok
+	global.behaviors->altmap(KEY_T,		&global.FnPressed, KEY_T,	KEY_CLOSECD);			// I168 // ok
+	global.behaviors->altmap(KEY_Y,		&global.FnPressed, KEY_Y,	KEY_ISO);			// I178 // ok
+	global.behaviors->altmap(KEY_U,		&global.FnPressed, KEY_U,	KEY_MOVE);			// I183 // ok
+	global.behaviors->altmap(KEY_I,		&global.FnPressed, KEY_I,	KEY_EDIT);			// I184 // ok
+	global.behaviors->altmap(KEY_O,		&global.FnPressed, KEY_O,	KEY_ALTERASE);			// I230 // ok
+	global.behaviors->altmap(KEY_P,		&global.FnPressed, KEY_P,	KEY_BASSBOOST);			// I217 // ok
+	global.behaviors->altmap(KEY_APOSTROPHE,	&global.FnPressed, KEY_APOSTROPHE,	KEY_UWB);	// I247 // ok
+	global.behaviors->altmap(KEY_A,		&global.FnPressed, KEY_A,	KEY_QUESTION);			// I222 // ok
+	global.behaviors->altmap(KEY_S,		&global.FnPressed, KEY_S,	KEY_UNKNOWN);			// I248 // ok
+	global.behaviors->altmap(KEY_D,		&global.FnPressed, KEY_D,	KEY_SOUND);			// I221 // ok
+	global.behaviors->altmap(KEY_F,		&global.FnPressed, KEY_F,	KEY_HP);			// I219 // ok
+	global.behaviors->altmap(KEY_G,		&global.FnPressed, KEY_G,	KEY_RO);			// I249- AB11 (89)
+	global.behaviors->altmap(KEY_H,		&global.FnPressed, KEY_H,	KEY_KPJPCOMMA);			// I250- JPCM (95)
+	global.behaviors->altmap(KEY_J,		&global.FnPressed, KEY_J,	KEY_YEN);			// I251- AE13 (124)
+	global.behaviors->altmap(KEY_K,		&global.FnPressed, KEY_K,	KEY_F19);			// I252- FK19 (189)
+	global.behaviors->altmap(KEY_L,		&global.FnPressed, KEY_L,	KEY_F24);			// I253- FK24 (194)
 	global.behaviors->altmap(KEY_COMMA,	&global.FnPressed, KEY_COMMA,	KEY_SEMICOLON);
 	global.behaviors->altmap(KEY_DOT,	&global.FnPressed, KEY_DOT,	KEY_SLASH);
 	global.behaviors->altmap(KEY_Z,		&global.FnPressed, KEY_Z,	KEY_EQUAL);
@@ -206,13 +206,13 @@ void init(char const** argv, unsigned int argc) {
 	global.behaviors->altmap(KEY_V,		&global.FnPressed, KEY_V,	KEY_RIGHTBRACE);
 	global.behaviors->altmap(KEY_B,		&global.FnPressed, KEY_B,	KEY_BACKSLASH);
 	global.behaviors->altmap(KEY_N,		&global.FnPressed, KEY_N,	KEY_GRAVE);
-	//global.behaviors->altmap(KEY_M,		&global.FnPressed, KEY_M,	);
+	global.behaviors->altmap(KEY_M,		&global.FnPressed, KEY_M,	195);			// 228- MDSW (195)
 	global.behaviors->altmap(KEY_SPACE,	&global.FnPressed, KEY_SPACE,	KEY_COMPOSE);
 	
 
 	global.gamepad = new UinputDevice("/dev/uinput", BUS_USB, "Modal Gamepad", 1, 1, 1, {
 		{ EV_KEY, {
-			BTN_A, BTN_B, BTN_NORTH, BTN_WEST, 
+			BTN_A, BTN_B, BTN_X, BTN_Y, 
 			BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,
 			BTN_SELECT, BTN_START, BTN_C, BTN_Z,
 			BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT,
