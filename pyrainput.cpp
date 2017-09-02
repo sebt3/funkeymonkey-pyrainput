@@ -13,9 +13,22 @@
 #include <unordered_map>
 #include <functional>
 #include <array>
+#include <dlfcn.h>
 
 
-// /usr/sbin/funkeymonkey -g -p /usr/lib/funkeymonkey/libtestmodule.so -m "pyra-gpio-keys@1" -m "tca8418" -m "nub"
+// /usr/sbin/funkeymonkey -g -p /usr/lib/funkeymonkey/libtestmodule.so -m "pyra-gpio-keys@1" -m "tca8418" -m "nub" -X config=myconfig.cfg
+
+void (*_getName)(int src, char *name);
+
+void* load(std::string const& name) {
+	void* value = dlsym(nullptr, name.data());
+	auto error = dlerror();
+	if(error) {
+		std::cerr << "ERROR: While loading " << name << ": " << error << std::endl;
+		value = nullptr;
+	}
+	return value;
+};
 
 static constexpr unsigned int FIRST_KEY = KEY_RESERVED;
 static constexpr unsigned int LAST_KEY = KEY_UNKNOWN;
@@ -24,6 +37,7 @@ template<int FIRST_KEY, int LAST_KEY> class KeyBehaviors {
 public:
 	void passthrough(unsigned int code);
 	void map(unsigned int code, unsigned int result);
+	void gphat(unsigned int code, unsigned int gamepad);
 	void gpmap(unsigned int code, unsigned int gamepad);
 	void altmap(unsigned int code, bool* flag, unsigned int regular, unsigned int alternative);
 	void complex(unsigned int code, std::function<void(int)> function);
@@ -32,7 +46,7 @@ public:
 private:
 	struct KeyBehavior {
 		KeyBehavior() : type(PASSTHROUGH), mapping(0), function() {}
-		enum Type  { PASSTHROUGH, MAPPED, ALTMAPPED, COMPLEX, GPMAPPED };
+		enum Type  { PASSTHROUGH, MAPPED, ALTMAPPED, COMPLEX, GPMAPPED, GPHAT };
 		Type type;
 		int mapping;
 		int alternative;
@@ -64,9 +78,7 @@ struct Mouse {
 struct Settings {
 	enum NubAxisMode {
 		UNKNOWN_NUB_AXIS_MODE,
-		LEFT_JOYSTICK_X, LEFT_JOYSTICK_Y,
-		RIGHT_JOYSTICK_X, RIGHT_JOYSTICK_Y,
-		MOUSE_X, MOUSE_Y,
+		MOUSE_X, MOUSE_Y, MOUSE_BTN,
 		SCROLL_X, SCROLL_Y
 	};
 	enum NubClickMode {
@@ -75,29 +87,27 @@ struct Settings {
 		MOUSE_LEFT, MOUSE_RIGHT
 	};
 	
-	NubAxisMode leftNubModeX = LEFT_JOYSTICK_X;
-	NubAxisMode leftNubModeY = LEFT_JOYSTICK_Y;
-	NubAxisMode rightNubModeX = RIGHT_JOYSTICK_X;
-	NubAxisMode rightNubModeY = RIGHT_JOYSTICK_Y;
-	NubClickMode leftNubClickMode = NUB_CLICK_LEFT;
-	NubClickMode rightNubClickMode = NUB_CLICK_RIGHT;
+	NubAxisMode leftNubModeX = MOUSE_X;
+	NubAxisMode leftNubModeY = MOUSE_Y;
+	NubAxisMode rightNubModeX = MOUSE_BTN;
+	NubAxisMode rightNubModeY = SCROLL_Y;
+	NubClickMode leftNubClickMode = MOUSE_LEFT;
+	NubClickMode rightNubClickMode = MOUSE_RIGHT;
 	
 	// May be changed from any thread at any time
-	int mouseDeadzone = 100;
-	int mouseSensitivity = 15;
-	int mouseWheelDeadzone = 500;
-	
+	int mouseDeadzone = 20;
+	int mouseSensitivity = 40;
+	int mouseWheelDeadzone = 50;
+	int mouseClickDeadzone = 60;
+
 	std::string configFile;
 };
 
 using NubAxisModeMap = std::unordered_map<std::string, Settings::NubAxisMode>;
 NubAxisModeMap const NUB_AXIS_MODES = {
-	{ "left_joystick_x", Settings::LEFT_JOYSTICK_X },
-	{ "left_joystick_y", Settings::LEFT_JOYSTICK_Y },
-	{ "right_joystick_x", Settings::RIGHT_JOYSTICK_X },
-	{ "right_joystick_y", Settings::RIGHT_JOYSTICK_Y },
 	{ "mouse_x", Settings::MOUSE_X },
 	{ "mouse_y", Settings::MOUSE_Y },
+	{ "mouse_btn", Settings::MOUSE_BTN },
 	{ "scroll_x", Settings::SCROLL_X },
 	{ "scroll_y", Settings::SCROLL_Y }
 };
@@ -129,24 +139,30 @@ struct {
 	std::thread mouseThread;
 	Settings settings;
 	bool FnPressed = false;
+	int nub0fd = -1;
+	int nub1fd = -1;
+	int hatx = 0;
+	int haty = 0;
+	int mouseBtn = 0;
 } global;
 
 
 void init(char const** argv, unsigned int argc) {
+	_getName = reinterpret_cast<decltype(_getName)>(load("getName"));
 	std::vector<unsigned int> keycodes;
 	for(unsigned int i = FIRST_KEY; i <= LAST_KEY; ++i) {
 		keycodes.push_back(i);
 	}
 	
-	global.keyboard = new UinputDevice("/dev/uinput", BUS_USB, "FunKeyMonkey keyboard", 1, 1, 1, {
+	global.keyboard = new UinputDevice("/dev/uinput", BUS_USB, "pyraInput keyboard", 1, 1, 1, {
 		{ EV_KEY, keycodes }
 	});
-	
+
 	global.behaviors = new KeyBehaviors<FIRST_KEY, LAST_KEY>();
-	global.behaviors->gpmap(KEY_UP,		BTN_DPAD_UP);
-	global.behaviors->gpmap(KEY_DOWN,	BTN_DPAD_DOWN);
-	global.behaviors->gpmap(KEY_LEFT,	BTN_DPAD_LEFT);
-	global.behaviors->gpmap(KEY_RIGHT,	BTN_DPAD_RIGHT);
+	global.behaviors->gphat(KEY_UP,		BTN_DPAD_UP);
+	global.behaviors->gphat(KEY_DOWN,	BTN_DPAD_DOWN);
+	global.behaviors->gphat(KEY_LEFT,	BTN_DPAD_LEFT);
+	global.behaviors->gphat(KEY_RIGHT,	BTN_DPAD_RIGHT);
 	global.behaviors->gpmap(KEY_LEFTALT,	BTN_START);
 	global.behaviors->gpmap(KEY_LEFTCTRL,	BTN_SELECT);
 	global.behaviors->gpmap(KEY_HOME,	BTN_A);
@@ -210,18 +226,17 @@ void init(char const** argv, unsigned int argc) {
 	global.behaviors->altmap(KEY_SPACE,	&global.FnPressed, KEY_SPACE,	KEY_COMPOSE);
 	
 
-	global.gamepad = new UinputDevice("/dev/uinput", BUS_USB, "Modal Gamepad", 1, 1, 1, {
+	global.gamepad = new UinputDevice("/dev/uinput", BUS_USB, "pyraInput Gamepad", 1, 1, 1, {
 		{ EV_KEY, {
 			BTN_A, BTN_B, BTN_X, BTN_Y, 
 			BTN_TL, BTN_TR, BTN_TL2, BTN_TR2,
 			BTN_SELECT, BTN_START, BTN_C, BTN_Z,
-			BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT,
 			BTN_THUMBL, BTN_THUMBR
 		} },
-		{ EV_ABS, { REL_X, REL_Y, REL_RX, REL_RY } }
+		{ EV_ABS, { ABS_HAT0X, ABS_HAT0Y, ABS_X, ABS_Y, ABS_RX, ABS_RY } }
 	});
 	global.mouse = new Mouse {
-		UinputDevice("/dev/uinput", BUS_USB, "Modal Gamepad Mouse", 1, 1, 1, {
+		UinputDevice("/dev/uinput", BUS_USB, "pyraInput Mouse", 1, 1, 1, {
 			{ EV_KEY, { BTN_LEFT, BTN_RIGHT } },
 	       { EV_REL, { REL_X, REL_Y, REL_HWHEEL, REL_WHEEL } }
 		}), 0, 0, 0, 0, {}, {}
@@ -235,39 +250,78 @@ void init(char const** argv, unsigned int argc) {
 	}
 }
 
-void handle(input_event const& e) {
+void handle(input_event const& e, int src) {
 	switch(e.type) {
 	case EV_ABS:
-		/*printf("EV_ABS: %d (%d,%d,%d,%d)\n", e.code, ABS_X,ABS_Y,ABS_RX,ABS_RY);*/
-		switch(e.code) {
-		case ABS_X:
-			handleNubAxis(global.settings.leftNubModeX, e.value, global.mouse, global.gamepad, global.settings);
-			break;
-		case ABS_Y:
-			handleNubAxis(global.settings.leftNubModeY, e.value, global.mouse, global.gamepad, global.settings);
-			break;
-		case ABS_RX:
-			handleNubAxis(global.settings.rightNubModeX, e.value, global.mouse, global.gamepad, global.settings);
-			break;
-		case ABS_RY:
-			handleNubAxis(global.settings.rightNubModeY, e.value, global.mouse, global.gamepad, global.settings);
-			break;
-		default: break;
+		if (src != global.nub0fd && src != global.nub1fd) {
+			char name[256];
+			_getName(src, name);
+			std::string tmp = name;
+			if (tmp == "nub0")
+				global.nub0fd = src;
+			else if (tmp == "nub1")
+				global.nub1fd = src;
+			else
+				std::cout << "UNKNOWN device " << tmp << std::endl;
+		}
+
+		if (src == global.nub0fd) {
+			switch(e.code) {
+			case ABS_X:
+				global.gamepad->send(EV_ABS, ABS_X, e.value);
+				global.gamepad->send(EV_SYN, 0, 0);
+				handleNubAxis(global.settings.leftNubModeX, e.value, global.mouse, global.gamepad, global.settings);
+				break;
+			case ABS_Y:
+				global.gamepad->send(EV_ABS, ABS_Y, e.value);
+				global.gamepad->send(EV_SYN, 0, 0);
+				handleNubAxis(global.settings.leftNubModeY, e.value, global.mouse, global.gamepad, global.settings);
+				break;
+			default: break;
+			};
+		} else if (src == global.nub1fd) {
+			switch(e.code) {
+			case ABS_X:
+				global.gamepad->send(EV_ABS, ABS_RX, e.value);
+				global.gamepad->send(EV_SYN, 0, 0);
+				handleNubAxis(global.settings.rightNubModeX, e.value, global.mouse, global.gamepad, global.settings);
+				break;
+			case ABS_Y:
+				global.gamepad->send(EV_ABS, ABS_RY, e.value);
+				global.gamepad->send(EV_SYN, 0, 0);
+				handleNubAxis(global.settings.rightNubModeY, e.value, global.mouse, global.gamepad, global.settings);
+				break;
+			default: break;
 		};
+		}
 		break;
 	case EV_KEY:
 		switch(e.code) {
 		case BTN_LEFT: // mouse click
 		case BTN_RIGHT:
 		case BTN_MIDDLE:
-			global.mouse->device.send(EV_KEY, e.code, e.value);
+			// TODO : configure this
+			if (src == global.nub0fd)
+				global.mouse->device.send(EV_KEY, BTN_LEFT, e.value);
+			else if (src == global.nub1fd)
+				global.mouse->device.send(EV_KEY, BTN_RIGHT, e.value);
+			/*else
+				global.mouse->device.send(EV_KEY, e.code, e.value);*/
 			global.mouse->device.send(EV_SYN, 0, 0);
 			break;
 		case BTN_THUMBL:
-			handleNubClick(global.settings.leftNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
-			break;
 		case BTN_THUMBR:
-			handleNubClick(global.settings.rightNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
+			if (src == global.nub0fd) {
+				std::cout << "left nub click\n";
+				handleNubClick(global.settings.leftNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
+				global.gamepad->send(EV_KEY, BTN_THUMBL, e.value);
+				global.gamepad->send(EV_SYN, 0, 0);
+			} else if (src == global.nub1fd) {
+				std::cout << "right nub click\n";
+				handleNubClick(global.settings.rightNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
+				global.gamepad->send(EV_KEY, BTN_THUMBR, e.value);
+				global.gamepad->send(EV_SYN, 0, 0);
+			}
 			break;
 		default: 
 			global.behaviors->handle(e.code, e.value);
@@ -334,6 +388,9 @@ SettingHandlerMap const SETTING_HANDLERS = {
 	} },
 	{ "mouse.wheel.deadzone", [](std::string const& value, Settings& settings) {
 		settings.mouseWheelDeadzone = std::stoi(value);
+	} },
+	{ "mouse.click.deadzone", [](std::string const& value, Settings& settings) {
+		settings.mouseClickDeadzone = std::stoi(value);
 	} },
 	{ "nubs.left.x", [](std::string const& value, Settings& settings) {
 		settings.leftNubModeX = parseNubAxisMode(value);
@@ -431,21 +488,25 @@ void handleNubAxis(Settings::NubAxisMode mode, int value, Mouse* mouse, UinputDe
 		if(mouse->dwy > settings.mouseDeadzone  || mouse->dwy < -settings.mouseDeadzone)
 			mouse->signal.notify_all();
 		break;
-	case Settings::LEFT_JOYSTICK_X:
-		gamepad->send(EV_ABS, ABS_X, value);
-		gamepad->send(EV_SYN, 0, 0);
-		break;
-	case Settings::LEFT_JOYSTICK_Y:
-		gamepad->send(EV_ABS, ABS_Y, value);
-		gamepad->send(EV_SYN, 0, 0);
-		break;
-	case Settings::RIGHT_JOYSTICK_X:
-		gamepad->send(EV_ABS, ABS_RX, value);
-		gamepad->send(EV_SYN, 0, 0);
-		break;
-	case Settings::RIGHT_JOYSTICK_Y:
-		gamepad->send(EV_ABS, ABS_RY, value);
-		gamepad->send(EV_SYN, 0, 0);
+	case Settings::MOUSE_BTN: {
+		int new_val = 0;
+		if (value < -settings.mouseClickDeadzone) 
+			new_val = -1;
+		else if (value > settings.mouseClickDeadzone) 
+			new_val = 1;
+		if (global.mouseBtn!=new_val) {
+			if (global.mouseBtn == -1) 
+				mouse->device.send(EV_KEY, BTN_LEFT, 0);
+			else if (global.mouseBtn == 1) 
+				mouse->device.send(EV_KEY, BTN_RIGHT, 0);
+			if (new_val == -1 )
+				mouse->device.send(EV_KEY, BTN_LEFT, 1);
+			else if (new_val == 1 )
+				mouse->device.send(EV_KEY, BTN_RIGHT, 1);
+			mouse->device.send(EV_SYN, 0, 0);
+			global.mouseBtn=new_val;
+		}
+		}
 		break;
 	case Settings::UNKNOWN_NUB_AXIS_MODE:
 		break;
@@ -548,6 +609,12 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::gp
 	b.alternative = gamepad;
 }
 
+template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::gphat(unsigned int code, unsigned int gamepad) {
+	auto& b = behaviors.at(code - FIRST_KEY);
+	b.type = KeyBehavior::GPHAT;
+	b.alternative = gamepad;
+}
+
 template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::handle(unsigned int code, int value) {
 	if (code <FIRST_KEY || code >LAST_KEY) return;
 	KeyBehavior const& kb = behaviors.at(code - FIRST_KEY);
@@ -567,6 +634,26 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::ha
 	case KeyBehavior::GPMAPPED:
 		global.keyboard->send(EV_KEY, code, value);
 		global.gamepad->send(EV_KEY, kb.alternative, value);
+		global.gamepad->send(EV_SYN, 0, 0);
+		break;
+	case KeyBehavior::GPHAT:
+		global.keyboard->send(EV_KEY, code, value);
+		switch (kb.alternative) {
+		case BTN_DPAD_UP:
+			global.haty = -value;
+			break;
+		case BTN_DPAD_DOWN:
+			global.haty = value;
+			break;
+		case BTN_DPAD_LEFT:
+			global.hatx = -value;
+			break;
+		case BTN_DPAD_RIGHT:
+			global.hatx = value;
+			break;
+		};
+		global.gamepad->send(EV_ABS, ABS_HAT0X, global.hatx*65535);
+		global.gamepad->send(EV_ABS, ABS_HAT0Y, global.haty*65535);
 		global.gamepad->send(EV_SYN, 0, 0);
 	};
 }
