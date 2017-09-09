@@ -97,8 +97,8 @@ struct Settings {
 	// May be changed from any thread at any time
 	int mouseDeadzone = 20;
 	int mouseSensitivity = 40;
-	int mouseWheelDeadzone = 50;
-	int mouseClickDeadzone = 60;
+	int mouseWheelDeadzone = 100;
+	int mouseClickDeadzone = 100;
 
 	std::string configFile;
 };
