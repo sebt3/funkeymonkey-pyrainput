@@ -1,6 +1,7 @@
 [Unit]
 Description=Pyra Input Deamon (funkeymonkey)
 After=network.target
+Documentation=https://github.com/sebt3/funkeymonkey-pyrainput
 
 [Service]
 ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/funkeymonkey -g -p @CMAKE_INSTALL_PREFIX@/lib/funkeymonkey/libpyrainput.so -m "pyra-gpio-keys@1" -m "tca8418" -m "nub" -X config=/etc/pyrainput.cfg

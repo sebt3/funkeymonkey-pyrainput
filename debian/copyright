@@ -1,22 +1,12 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: funkeymonkey-pyrainput
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/ 
+Upstream-Name: funkeymonkey-pyrainput 
 Source: https://github.com/sebt3/funkeymonkey-pyrainput
-#
-# Please double check copyright with the licensecheck(1) command.
 
-Files:     CMakeLists.txt
-           README.md
-           pyrainput.cpp
-Copyright: __NO_COPYRIGHT_NOR_LICENSE__
-License:   __NO_COPYRIGHT_NOR_LICENSE__
+Files: *
+Copyright: 2017 Sebastien Huss
+License: BSD-2-clause 
 
-#----------------------------------------------------------------------------
-# Files marked as NO_LICENSE_TEXT_FOUND may be covered by the following
-# license/copyright files.
-
-#----------------------------------------------------------------------------
-# License file: LICENSE
- Copyright (c) 2017, Sebastien Huss
+License: BSD-2-clause
  All rights reserved.
  .
  Redistribution and use in source and binary forms, with or without
