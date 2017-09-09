@@ -99,6 +99,10 @@ struct Settings {
 	int mouseSensitivity = 40;
 	int mouseWheelDeadzone = 100;
 	int mouseClickDeadzone = 100;
+	
+	bool exportGamepad = true;
+	bool exportMouse   = true;
+	bool exportKeypad  = true;
 
 	std::string configFile;
 };
@@ -268,13 +272,17 @@ void handle(input_event const& e, int src) {
 		if (src == global.nub0fd) {
 			switch(e.code) {
 			case ABS_X:
-				global.gamepad->send(EV_ABS, ABS_X, e.value);
-				global.gamepad->send(EV_SYN, 0, 0);
+				if (global.settings.exportGamepad) {
+					global.gamepad->send(EV_ABS, ABS_X, e.value);
+					global.gamepad->send(EV_SYN, 0, 0);
+				}
 				handleNubAxis(global.settings.leftNubModeX, e.value, global.mouse, global.gamepad, global.settings);
 				break;
 			case ABS_Y:
-				global.gamepad->send(EV_ABS, ABS_Y, e.value);
-				global.gamepad->send(EV_SYN, 0, 0);
+				if (global.settings.exportGamepad) {
+					global.gamepad->send(EV_ABS, ABS_Y, e.value);
+					global.gamepad->send(EV_SYN, 0, 0);
+				}
 				handleNubAxis(global.settings.leftNubModeY, e.value, global.mouse, global.gamepad, global.settings);
 				break;
 			default: break;
@@ -282,13 +290,17 @@ void handle(input_event const& e, int src) {
 		} else if (src == global.nub1fd) {
 			switch(e.code) {
 			case ABS_X:
-				global.gamepad->send(EV_ABS, ABS_RX, e.value);
-				global.gamepad->send(EV_SYN, 0, 0);
+				if (global.settings.exportGamepad) {
+					global.gamepad->send(EV_ABS, ABS_RX, e.value);
+					global.gamepad->send(EV_SYN, 0, 0);
+				}
 				handleNubAxis(global.settings.rightNubModeX, e.value, global.mouse, global.gamepad, global.settings);
 				break;
 			case ABS_Y:
-				global.gamepad->send(EV_ABS, ABS_RY, e.value);
-				global.gamepad->send(EV_SYN, 0, 0);
+				if (global.settings.exportGamepad) {
+					global.gamepad->send(EV_ABS, ABS_RY, e.value);
+					global.gamepad->send(EV_SYN, 0, 0);
+				}
 				handleNubAxis(global.settings.rightNubModeY, e.value, global.mouse, global.gamepad, global.settings);
 				break;
 			default: break;
@@ -301,9 +313,9 @@ void handle(input_event const& e, int src) {
 		case BTN_RIGHT:
 		case BTN_MIDDLE:
 			// TODO : configure this
-			if (src == global.nub0fd)
+			if (src == global.nub0fd && global.settings.exportMouse)
 				global.mouse->device.send(EV_KEY, BTN_LEFT, e.value);
-			else if (src == global.nub1fd)
+			else if (src == global.nub1fd && global.settings.exportMouse)
 				global.mouse->device.send(EV_KEY, BTN_RIGHT, e.value);
 			/*else
 				global.mouse->device.send(EV_KEY, e.code, e.value);*/
@@ -311,16 +323,20 @@ void handle(input_event const& e, int src) {
 			break;
 		case BTN_THUMBL:
 		case BTN_THUMBR:
-			if (src == global.nub0fd) {
+			if (src == global.nub0fd && global.settings.exportMouse) {
 				std::cout << "left nub click\n";
 				handleNubClick(global.settings.leftNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
-				global.gamepad->send(EV_KEY, BTN_THUMBL, e.value);
-				global.gamepad->send(EV_SYN, 0, 0);
-			} else if (src == global.nub1fd) {
+				if (global.settings.exportGamepad) {
+					global.gamepad->send(EV_KEY, BTN_THUMBL, e.value);
+					global.gamepad->send(EV_SYN, 0, 0);
+				}
+			} else if (src == global.nub1fd && global.settings.exportMouse) {
 				std::cout << "right nub click\n";
 				handleNubClick(global.settings.rightNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
-				global.gamepad->send(EV_KEY, BTN_THUMBR, e.value);
-				global.gamepad->send(EV_SYN, 0, 0);
+				if (global.settings.exportGamepad) {
+					global.gamepad->send(EV_KEY, BTN_THUMBR, e.value);
+					global.gamepad->send(EV_SYN, 0, 0);
+				}
 			}
 			break;
 		default: 
@@ -380,6 +396,15 @@ void handleArgs(char const** argv, unsigned int argc, Settings& settings) {
 using SettingHandler = std::function<void(std::string const&,Settings&)>;
 using SettingHandlerMap = std::unordered_map<std::string, SettingHandler>;
 SettingHandlerMap const SETTING_HANDLERS = {
+	{ "gamepad.export", [](std::string const& value, Settings& settings){
+		settings.exportGamepad = (value != "0");
+	} },
+	{ "keypad.export", [](std::string const& value, Settings& settings){
+		settings.exportKeypad = (value != "0");
+	} },
+	{ "mouse.export", [](std::string const& value, Settings& settings){
+		settings.exportMouse = (value != "0");
+	} },
 	{ "mouse.sensitivity", [](std::string const& value, Settings& settings){
 		settings.mouseSensitivity = std::stoi(value);
 	} },
@@ -494,7 +519,7 @@ void handleNubAxis(Settings::NubAxisMode mode, int value, Mouse* mouse, UinputDe
 			new_val = -1;
 		else if (value > settings.mouseClickDeadzone) 
 			new_val = 1;
-		if (global.mouseBtn!=new_val) {
+		if (global.mouseBtn!=new_val && global.settings.exportMouse) {
 			if (global.mouseBtn == -1) 
 				mouse->device.send(EV_KEY, BTN_LEFT, 0);
 			else if (global.mouseBtn == 1) 
@@ -516,24 +541,32 @@ void handleNubAxis(Settings::NubAxisMode mode, int value, Mouse* mouse, UinputDe
 void handleNubClick(Settings::NubClickMode mode, int value, Mouse* mouse, UinputDevice* gamepad, Settings const& settings) {
 	switch(mode) {
 	case Settings::MOUSE_LEFT: {
-		std::lock_guard<std::mutex> lk(mouse->mutex);
-		mouse->device.send(EV_KEY, BTN_LEFT, value);
-		mouse->device.send(EV_SYN, 0, 0);
+		if (global.settings.exportMouse) {
+			std::lock_guard<std::mutex> lk(mouse->mutex);
+			mouse->device.send(EV_KEY, BTN_LEFT, value);
+			mouse->device.send(EV_SYN, 0, 0);
+		}
 		break;
 	}
 	case Settings::MOUSE_RIGHT: {
-		std::lock_guard<std::mutex> lk(mouse->mutex);
-		mouse->device.send(EV_KEY, BTN_RIGHT, value);
-		mouse->device.send(EV_SYN, 0, 0);
+		if (global.settings.exportMouse) {
+			std::lock_guard<std::mutex> lk(mouse->mutex);
+			mouse->device.send(EV_KEY, BTN_RIGHT, value);
+			mouse->device.send(EV_SYN, 0, 0);
+		}
 		break;
 	}
 	case Settings::NUB_CLICK_LEFT:
-		gamepad->send(EV_KEY, BTN_THUMBL, value);
-		gamepad->send(EV_SYN, 0, 0);
+		if (global.settings.exportGamepad) {
+			gamepad->send(EV_KEY, BTN_THUMBL, value);
+			gamepad->send(EV_SYN, 0, 0);
+		}
 		break;
 	case Settings::NUB_CLICK_RIGHT:
-		gamepad->send(EV_KEY, BTN_THUMBR, value);
-		gamepad->send(EV_SYN, 0, 0);
+		if (global.settings.exportGamepad) {
+			gamepad->send(EV_KEY, BTN_THUMBR, value);
+			gamepad->send(EV_SYN, 0, 0);
+		}
 		break;
 	case Settings::UNKNOWN_NUB_CLICK_MODE:
 		break;
@@ -542,7 +575,7 @@ void handleNubClick(Settings::NubClickMode mode, int value, Mouse* mouse, Uinput
 
 void handleMouse(Mouse* mouse, Settings* settings, bool* stop) {
 	while(!*stop) {
-		if(mouse->dx > settings->mouseDeadzone || mouse->dx < -settings->mouseDeadzone || mouse->dy > settings->mouseDeadzone || mouse->dy < -settings->mouseDeadzone || mouse->dwx > settings->mouseWheelDeadzone || mouse->dwx < -settings->mouseWheelDeadzone || mouse->dwy > settings->mouseWheelDeadzone || mouse->dwy < -settings->mouseWheelDeadzone) {
+		if((mouse->dx > settings->mouseDeadzone || mouse->dx < -settings->mouseDeadzone || mouse->dy > settings->mouseDeadzone || mouse->dy < -settings->mouseDeadzone || mouse->dwx > settings->mouseClickDeadzone || mouse->dwx < -settings->mouseClickDeadzone || mouse->dwy > settings->mouseWheelDeadzone || mouse->dwy < -settings->mouseWheelDeadzone)&&global.settings.exportMouse) {
 			std::lock_guard<std::mutex> lk(mouse->mutex);
 
 			if(mouse->dx > settings->mouseDeadzone) {
@@ -557,15 +590,15 @@ void handleMouse(Mouse* mouse, Settings* settings, bool* stop) {
 				mouse->device.send(EV_REL, REL_Y, (mouse->dy + settings->mouseDeadzone) * settings->mouseSensitivity / 1000);
 			}
 
-			if(mouse->dwx > settings->mouseDeadzone) {
+			if(mouse->dwx > settings->mouseClickDeadzone) {
 				mouse->device.send(EV_REL, REL_HWHEEL, 1);
-			} else if(mouse->dwx < -settings->mouseDeadzone) {
+			} else if(mouse->dwx < -settings->mouseClickDeadzone) {
 				mouse->device.send(EV_REL, REL_HWHEEL, -1);
 			}
 
-			if(mouse->dwy > settings->mouseDeadzone) {
+			if(mouse->dwy > settings->mouseWheelDeadzone) {
 				mouse->device.send(EV_REL, REL_WHEEL, -1);
-			} else if(mouse->dwy < -settings->mouseDeadzone) {
+			} else if(mouse->dwy < -settings->mouseWheelDeadzone) {
 				mouse->device.send(EV_REL, REL_WHEEL, 1);
 			}
 
@@ -632,9 +665,12 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::ha
 		kb.function(value);
 		break;
 	case KeyBehavior::GPMAPPED:
-		global.keyboard->send(EV_KEY, code, value);
-		global.gamepad->send(EV_KEY, kb.alternative, value);
-		global.gamepad->send(EV_SYN, 0, 0);
+		if (global.settings.exportKeypad)
+			global.keyboard->send(EV_KEY, code, value);
+		if (global.settings.exportGamepad) {
+			global.gamepad->send(EV_KEY, kb.alternative, value);
+			global.gamepad->send(EV_SYN, 0, 0);
+		}
 		break;
 	case KeyBehavior::GPHAT:
 		global.keyboard->send(EV_KEY, code, value);
@@ -652,8 +688,10 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::ha
 			global.hatx = value;
 			break;
 		};
-		global.gamepad->send(EV_ABS, ABS_HAT0X, global.hatx*65535);
-		global.gamepad->send(EV_ABS, ABS_HAT0Y, global.haty*65535);
-		global.gamepad->send(EV_SYN, 0, 0);
+		if (global.settings.exportGamepad) {
+			global.gamepad->send(EV_ABS, ABS_HAT0X, global.hatx*65535);
+			global.gamepad->send(EV_ABS, ABS_HAT0Y, global.haty*65535);
+			global.gamepad->send(EV_SYN, 0, 0);
+		}
 	};
 }
