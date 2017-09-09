@@ -36,3 +36,8 @@ gamepad.export		= 1
 keypad.export		= 1
 mouse.export		= 1
 ```
+
+Then reload configuration with:
+```
+systemctl reload pyrainput
+```
