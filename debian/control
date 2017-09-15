@@ -5,7 +5,7 @@ Maintainer: Sébastien Huss <sebastien.huss@gmail.com>
 Build-Depends: cmake, debhelper (>=9), dh-systemd, pkg-config, funkeymonkey-dev,
  systemd
 Standards-Version: 3.9.8
-Homepage: https://github.com/sebt3/funkeymonkey-pyrainput
+Homepage: https://dev.pyra-handheld.com/sebt3/funkeymonkey-pyrainput
 
 Package: funkeymonkey-pyrainput
 Architecture: any
