@@ -4,7 +4,7 @@ After=network.target
 Documentation=https://github.com/sebt3/funkeymonkey-pyrainput
 
 [Service]
-ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/funkeymonkey -g -p @CMAKE_INSTALL_PREFIX@/lib/funkeymonkey/libpyrainput.so -m "pyra-gpio-keys@1" -m "tca8418" -m "nub" -X config=/etc/pyrainput.cfg
+ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/funkeymonkey -g -p @CMAKE_INSTALL_PREFIX@/lib/funkeymonkey/libpyrainput.so -r 0,1,2,3 -m nub0 -m nub1  -m "tca8418" -m "pyra-gpio-keys@1" -X config=/etc/pyrainput.cfg
 ExecReload=/bin/kill -USR1 $MAINPID
 KillMode=process
 Restart=on-failure

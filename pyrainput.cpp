@@ -13,22 +13,8 @@
 #include <unordered_map>
 #include <functional>
 #include <array>
-#include <dlfcn.h>
 
-
-// /usr/sbin/funkeymonkey -g -p /usr/lib/funkeymonkey/libtestmodule.so -m "pyra-gpio-keys@1" -m "tca8418" -m "nub" -X config=myconfig.cfg
-
-void (*_getName)(int src, char *name);
-
-void* load(std::string const& name) {
-	void* value = dlsym(nullptr, name.data());
-	auto error = dlerror();
-	if(error) {
-		std::cerr << "ERROR: While loading " << name << ": " << error << std::endl;
-		value = nullptr;
-	}
-	return value;
-};
+enum Role { ROLE_LEFT_NUB, ROLE_RIGHT_NUB, ROLE_KEYBOARD, ROLE_GPIO };
 
 static constexpr unsigned int FIRST_KEY = KEY_RESERVED;
 static constexpr unsigned int LAST_KEY = KEY_UNKNOWN;
@@ -42,7 +28,7 @@ public:
 	void altmap(unsigned int code, bool* flag, unsigned int regular, unsigned int alternative);
 	void complex(unsigned int code, std::function<void(int)> function);
 	void handle(unsigned int code, int value);
-	
+
 private:
 	struct KeyBehavior {
 		KeyBehavior() : type(PASSTHROUGH), mapping(0), function() {}
@@ -143,8 +129,6 @@ struct {
 	std::thread mouseThread;
 	Settings settings;
 	bool FnPressed = false;
-	int nub0fd = -1;
-	int nub1fd = -1;
 	int hatx = 0;
 	int haty = 0;
 	int mouseBtn = 0;
@@ -152,7 +136,6 @@ struct {
 
 
 void init(char const** argv, unsigned int argc) {
-	_getName = reinterpret_cast<decltype(_getName)>(load("getName"));
 	std::vector<unsigned int> keycodes;
 	for(unsigned int i = FIRST_KEY; i <= LAST_KEY; ++i) {
 		keycodes.push_back(i);
@@ -254,22 +237,10 @@ void init(char const** argv, unsigned int argc) {
 	}
 }
 
-void handle(input_event const& e, int src) {
+void handle(input_event const& e, unsigned int role) {
 	switch(e.type) {
 	case EV_ABS:
-		if (src != global.nub0fd && src != global.nub1fd) {
-			char name[256];
-			_getName(src, name);
-			std::string tmp = name;
-			if (tmp == "nub0")
-				global.nub0fd = src;
-			else if (tmp == "nub1")
-				global.nub1fd = src;
-			else
-				std::cout << "UNKNOWN device " << tmp << std::endl;
-		}
-
-		if (src == global.nub0fd) {
+		if (role == ROLE_LEFT_NUB) {
 			switch(e.code) {
 			case ABS_X:
 				if (global.settings.exportGamepad) {
@@ -287,7 +258,7 @@ void handle(input_event const& e, int src) {
 				break;
 			default: break;
 			};
-		} else if (src == global.nub1fd) {
+		} else if (role == ROLE_LEFT_NUB) {
 			switch(e.code) {
 			case ABS_X:
 				if (global.settings.exportGamepad) {
@@ -313,9 +284,9 @@ void handle(input_event const& e, int src) {
 		case BTN_RIGHT:
 		case BTN_MIDDLE:
 			// TODO : configure this
-			if (src == global.nub0fd && global.settings.exportMouse)
+			if (role == ROLE_LEFT_NUB && global.settings.exportMouse)
 				global.mouse->device.send(EV_KEY, BTN_LEFT, e.value);
-			else if (src == global.nub1fd && global.settings.exportMouse)
+			else if (role == ROLE_RIGHT_NUB && global.settings.exportMouse)
 				global.mouse->device.send(EV_KEY, BTN_RIGHT, e.value);
 			/*else
 				global.mouse->device.send(EV_KEY, e.code, e.value);*/
@@ -323,14 +294,14 @@ void handle(input_event const& e, int src) {
 			break;
 		case BTN_THUMBL:
 		case BTN_THUMBR:
-			if (src == global.nub0fd && global.settings.exportMouse) {
+			if (role == ROLE_LEFT_NUB && global.settings.exportMouse) {
 				std::cout << "left nub click\n";
 				handleNubClick(global.settings.leftNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
 				if (global.settings.exportGamepad) {
 					global.gamepad->send(EV_KEY, BTN_THUMBL, e.value);
 					global.gamepad->send(EV_SYN, 0, 0);
 				}
-			} else if (src == global.nub1fd && global.settings.exportMouse) {
+			} else if (role == ROLE_RIGHT_NUB && global.settings.exportMouse) {
 				std::cout << "right nub click\n";
 				handleNubClick(global.settings.rightNubClickMode, e.value, global.mouse, global.gamepad, global.settings);
 				if (global.settings.exportGamepad) {
