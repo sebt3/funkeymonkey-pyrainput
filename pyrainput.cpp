@@ -258,7 +258,7 @@ void handle(input_event const& e, unsigned int role) {
 				break;
 			default: break;
 			};
-		} else if (role == ROLE_LEFT_NUB) {
+		} else if (role == ROLE_RIGHT_NUB) {
 			switch(e.code) {
 			case ABS_X:
 				if (global.settings.exportGamepad) {
