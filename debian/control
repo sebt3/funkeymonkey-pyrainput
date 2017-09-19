@@ -10,7 +10,7 @@ Homepage: https://dev.pyra-handheld.com/sebt3/funkeymonkey-pyrainput
 Package: funkeymonkey-pyrainput
 Architecture: any
 Multi-Arch: foreign
-Depends: ${misc:Depends}, ${shlibs:Depends}, funkeymonkey
+Depends: ${misc:Depends}, ${shlibs:Depends}, funkeymonkey (>=0.1.1)
 Description: FunKey-MonKey module that handles the Pyra input system
  pyra input daemon based on FunKey-MonKey
 
