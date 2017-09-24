@@ -81,6 +81,7 @@ struct Settings {
 	NubClickMode rightNubClickMode = MOUSE_RIGHT;
 	
 	// May be changed from any thread at any time
+	int joyDeadzone = 10;
 	int mouseDeadzone = 20;
 	int mouseSensitivity = 40;
 	int mouseWheelDeadzone = 100;
@@ -253,14 +254,14 @@ void handle(input_event const& e, unsigned int role) {
 		if (role == ROLE_LEFT_NUB) {
 			switch(e.code) {
 			case ABS_X:
-				if (global.settings.exportGamepad) {
+				if (global.settings.exportGamepad && (e.value>global.settings.joyDeadzone||e.value<-global.settings.joyDeadzone)) {
 					global.gamepad->send(EV_ABS, ABS_X, e.value);
 					global.gamepad->send(EV_SYN, 0, 0);
 				}
 				handleNubAxis(global.settings.leftNubModeX, e.value, global.mouse, global.gamepad, global.settings);
 				break;
 			case ABS_Y:
-				if (global.settings.exportGamepad) {
+				if (global.settings.exportGamepad && (e.value>global.settings.joyDeadzone||e.value<-global.settings.joyDeadzone)) {
 					global.gamepad->send(EV_ABS, ABS_Y, e.value);
 					global.gamepad->send(EV_SYN, 0, 0);
 				}
@@ -271,14 +272,14 @@ void handle(input_event const& e, unsigned int role) {
 		} else if (role == ROLE_RIGHT_NUB) {
 			switch(e.code) {
 			case ABS_X:
-				if (global.settings.exportGamepad) {
+				if (global.settings.exportGamepad && (e.value>global.settings.joyDeadzone||e.value<-global.settings.joyDeadzone)) {
 					global.gamepad->send(EV_ABS, ABS_RX, e.value);
 					global.gamepad->send(EV_SYN, 0, 0);
 				}
 				handleNubAxis(global.settings.rightNubModeX, e.value, global.mouse, global.gamepad, global.settings);
 				break;
 			case ABS_Y:
-				if (global.settings.exportGamepad) {
+				if (global.settings.exportGamepad && (e.value>global.settings.joyDeadzone||e.value<-global.settings.joyDeadzone)) {
 					global.gamepad->send(EV_ABS, ABS_RY, e.value);
 					global.gamepad->send(EV_SYN, 0, 0);
 				}
@@ -397,6 +398,9 @@ SettingHandlerMap const SETTING_HANDLERS = {
 	} },
 	{ "mouse.click.deadzone", [](std::string const& value, Settings& settings) {
 		settings.mouseClickDeadzone = std::stoi(value);
+	} },
+	{ "nubs.deadzone", [](std::string const& value, Settings& settings) {
+		settings.joyDeadzone = std::stoi(value);
 	} },
 	{ "nubs.left.x", [](std::string const& value, Settings& settings) {
 		settings.leftNubModeX = parseNubAxisMode(value);

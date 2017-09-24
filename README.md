@@ -26,6 +26,7 @@ mouse.sensitivity	= 40
 mouse.deadzone		= 20
 mouse.wheel.deadzone	= 100
 mouse.click.deadzone	= 100
+nubs.deadzone		= 10
 nubs.left.x		= [*mouse_x*|mouse_y|mouse_btn|scroll_x|scroll_y]
 nubs.left.y		= [mouse_x|*mouse_y*|mouse_btn|scroll_x|scroll_y]
 nubs.right.x		= [mouse_x|mouse_y|*mouse_btn*|scroll_x|scroll_y]
