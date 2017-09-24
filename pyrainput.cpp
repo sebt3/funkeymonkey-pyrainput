@@ -128,6 +128,8 @@ struct {
 	Mouse* mouse = nullptr;
 	std::thread mouseThread;
 	Settings settings;
+	bool rmeta = false;
+	bool lmeta = false;
 	bool FnPressed = false;
 	int hatx = 0;
 	int haty = 0;
@@ -157,13 +159,21 @@ void init(char const** argv, unsigned int argc) {
 	global.behaviors->gpmap(KEY_PAGEDOWN,	BTN_X);
 	global.behaviors->gpmap(KEY_PAGEUP,	BTN_Y);
 	global.behaviors->gpmap(KEY_RIGHTSHIFT,	BTN_TL);
-	global.behaviors->gpmap(KEY_RIGHTMETA,	BTN_TL2);
 	global.behaviors->gpmap(KEY_RIGHTCTRL,	BTN_TR);
 	global.behaviors->gpmap(KEY_RIGHTALT,	BTN_TR2);
 	global.behaviors->gpmap(KEY_INSERT,	BTN_C);  //(I)
 	global.behaviors->gpmap(KEY_DELETE,	BTN_Z);  //(II)
+	global.behaviors->complex(KEY_RIGHTMETA, [](int value) {
+		global.rmeta = (value==1);
+		global.FnPressed = global.lmeta || global.rmeta;
+		if (global.settings.exportGamepad) {
+			global.gamepad->send(EV_KEY, BTN_TL2, value);
+			global.gamepad->send(EV_SYN, 0, 0);
+		}
+	});
 	global.behaviors->complex(KEY_LEFTMETA, [](int value) {
-		global.FnPressed = (value==1);
+		global.lmeta = (value==1);
+		global.FnPressed = global.lmeta || global.rmeta;
 	});
 	//TODO: make the alt mapping configurable
 	global.behaviors->altmap(KEY_ESC,	&global.FnPressed, KEY_ESC,	KEY_SYSRQ);
