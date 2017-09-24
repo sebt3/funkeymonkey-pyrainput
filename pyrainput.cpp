@@ -13,8 +13,31 @@
 #include <unordered_map>
 #include <functional>
 #include <array>
+#include <stdlib.h> 
 
 enum Role { ROLE_LEFT_NUB, ROLE_RIGHT_NUB, ROLE_KEYBOARD, ROLE_GPIO };
+
+struct LeftRight {
+	bool left	= false;
+	bool right	= false;
+	bool pressed	= false;
+};
+
+struct Scripts {
+	std::string normal	= "";
+	std::string Fn		= "";
+	std::string Shift	= "";
+	std::string FnShift	= "";
+	std::string Alt		= "";
+	std::string Ctrl	= "";
+	std::string AltCtrl	= "";
+	std::string FnAlt	= "";
+	std::string FnCtrl	= "";
+	std::string ShiftAlt	= "";
+	std::string ShiftCtrl	= "";
+	std::string FnShiftAlt	= "";
+	std::string FnShiftCtrl	= "";
+};
 
 static constexpr unsigned int FIRST_KEY = KEY_RESERVED;
 static constexpr unsigned int LAST_KEY = KEY_UNKNOWN;
@@ -25,18 +48,22 @@ public:
 	void map(unsigned int code, unsigned int result);
 	void gphat(unsigned int code, unsigned int gamepad);
 	void gpmap(unsigned int code, unsigned int gamepad);
+	void gpmap2(unsigned int code, unsigned int gamepad, bool* self, LeftRight* pair);
 	void altmap(unsigned int code, bool* flag, unsigned int regular, unsigned int alternative);
 	void complex(unsigned int code, std::function<void(int)> function);
+	void script(unsigned int code, Scripts *s);
 	void handle(unsigned int code, int value);
 
 private:
 	struct KeyBehavior {
 		KeyBehavior() : type(PASSTHROUGH), mapping(0), function() {}
-		enum Type  { PASSTHROUGH, MAPPED, ALTMAPPED, COMPLEX, GPMAPPED, GPHAT };
+		enum Type  { PASSTHROUGH, MAPPED, ALTMAPPED, COMPLEX, GPMAPPED,GPMAP2, GPHAT, SCRIPT };
 		Type type;
 		int mapping;
 		int alternative;
 		bool* flag;
+		LeftRight* lr;
+		Scripts *scripts;
 		std::function<void(int)> function;
 	};
 
@@ -60,6 +87,7 @@ struct Mouse {
 	// Mouse device mutex
 	std::mutex mutex;
 };
+
 
 struct Settings {
 	enum NubAxisMode {
@@ -92,6 +120,7 @@ struct Settings {
 	bool exportKeypad  = true;
 
 	std::string configFile;
+	Scripts brightness;
 };
 
 using NubAxisModeMap = std::unordered_map<std::string, Settings::NubAxisMode>;
@@ -129,9 +158,10 @@ struct {
 	Mouse* mouse = nullptr;
 	std::thread mouseThread;
 	Settings settings;
-	bool rmeta = false;
-	bool lmeta = false;
-	bool FnPressed = false;
+	LeftRight Fn;
+	LeftRight Alt;
+	LeftRight Shift;
+	LeftRight Ctrl;
 	int hatx = 0;
 	int haty = 0;
 	int mouseBtn = 0;
@@ -153,75 +183,82 @@ void init(char const** argv, unsigned int argc) {
 	global.behaviors->gphat(KEY_DOWN,	BTN_DPAD_DOWN);
 	global.behaviors->gphat(KEY_LEFT,	BTN_DPAD_LEFT);
 	global.behaviors->gphat(KEY_RIGHT,	BTN_DPAD_RIGHT);
-	global.behaviors->gpmap(KEY_LEFTALT,	BTN_START);
-	global.behaviors->gpmap(KEY_LEFTCTRL,	BTN_SELECT);
+	global.behaviors->gpmap2(KEY_LEFTALT,	BTN_START, &global.Alt.left, &global.Alt);
+	global.behaviors->gpmap2(KEY_LEFTCTRL,	BTN_SELECT, &global.Ctrl.left, &global.Ctrl);
 	global.behaviors->gpmap(KEY_HOME,	BTN_A);
 	global.behaviors->gpmap(KEY_END,	BTN_B);
 	global.behaviors->gpmap(KEY_PAGEDOWN,	BTN_X);
 	global.behaviors->gpmap(KEY_PAGEUP,	BTN_Y);
-	global.behaviors->gpmap(KEY_RIGHTSHIFT,	BTN_TL);
-	global.behaviors->gpmap(KEY_RIGHTCTRL,	BTN_TR);
-	global.behaviors->gpmap(KEY_RIGHTALT,	BTN_TR2);
+	global.behaviors->gpmap2(KEY_RIGHTSHIFT,BTN_TL, &global.Shift.right, &global.Shift);
+	global.behaviors->gpmap2(KEY_RIGHTCTRL,	BTN_TR, &global.Ctrl.right, &global.Ctrl);
+	global.behaviors->gpmap2(KEY_RIGHTALT,	BTN_TR2, &global.Alt.right, &global.Alt);
 	global.behaviors->gpmap(KEY_INSERT,	BTN_C);  //(I)
 	global.behaviors->gpmap(KEY_DELETE,	BTN_Z);  //(II)
+	
+	global.behaviors->complex(KEY_LEFTSHIFT, [](int value) {
+		global.Shift.left = (value==1);
+		global.Shift.pressed = global.Shift.left || global.Shift.right;
+		global.keyboard->send(EV_KEY, KEY_LEFTSHIFT, value);
+	});
 	global.behaviors->complex(KEY_RIGHTMETA, [](int value) {
-		global.rmeta = (value==1);
-		global.FnPressed = global.lmeta || global.rmeta;
+		global.Fn.right = (value==1);
+		global.Fn.pressed = global.Fn.left || global.Fn.right;
 		if (global.settings.exportGamepad) {
 			global.gamepad->send(EV_KEY, BTN_TL2, value);
 			global.gamepad->send(EV_SYN, 0, 0);
 		}
 	});
 	global.behaviors->complex(KEY_LEFTMETA, [](int value) {
-		global.lmeta = (value==1);
-		global.FnPressed = global.lmeta || global.rmeta;
+		global.Fn.left = (value==1);
+		global.Fn.pressed = global.Fn.left || global.Fn.right;
 	});
+
 	//TODO: make the alt mapping configurable
-	global.behaviors->altmap(KEY_ESC,	&global.FnPressed, KEY_ESC,	KEY_SYSRQ);
-	global.behaviors->altmap(KEY_PAUSE,	&global.FnPressed, KEY_PAUSE,	KEY_SCALE);	// Here (119->120)
-	global.behaviors->altmap(KEY_BRIGHTNESSUP,	&global.FnPressed, KEY_BRIGHTNESSUP,	KEY_BRIGHTNESSDOWN);
-	global.behaviors->altmap(KEY_F11,	&global.FnPressed, KEY_F11,	KEY_F12);
-	global.behaviors->altmap(KEY_1,		&global.FnPressed, KEY_1,	KEY_F1);
-	global.behaviors->altmap(KEY_2,		&global.FnPressed, KEY_2,	KEY_F2);
-	global.behaviors->altmap(KEY_3,		&global.FnPressed, KEY_3,	KEY_F3);
-	global.behaviors->altmap(KEY_4,		&global.FnPressed, KEY_4,	KEY_F4);
-	global.behaviors->altmap(KEY_5,		&global.FnPressed, KEY_5,	KEY_F5);
-	global.behaviors->altmap(KEY_6,		&global.FnPressed, KEY_6,	KEY_F6);
-	global.behaviors->altmap(KEY_7,		&global.FnPressed, KEY_7,	KEY_F7);
-	global.behaviors->altmap(KEY_8,		&global.FnPressed, KEY_8,	KEY_F8);
-	global.behaviors->altmap(KEY_9,		&global.FnPressed, KEY_9,	KEY_F9);
-	global.behaviors->altmap(KEY_0,		&global.FnPressed, KEY_0,	KEY_F10);
-	global.behaviors->altmap(KEY_TAB,	&global.FnPressed, KEY_TAB,	KEY_CAPSLOCK);
-	global.behaviors->altmap(KEY_Q,		&global.FnPressed, KEY_Q,	KEY_MACRO);			// I120 // ok
-	global.behaviors->altmap(KEY_W,		&global.FnPressed, KEY_W,	KEY_KPCOMMA);			// I129 // ok
-	global.behaviors->altmap(KEY_E,		&global.FnPressed, KEY_E,	KEY_SETUP);			// I149 // ok
-	global.behaviors->altmap(KEY_R,		&global.FnPressed, KEY_R,	KEY_DELETEFILE);		// I154 // ok
-	global.behaviors->altmap(KEY_T,		&global.FnPressed, KEY_T,	KEY_CLOSECD);			// I168 // ok
-	global.behaviors->altmap(KEY_Y,		&global.FnPressed, KEY_Y,	KEY_ISO);			// I178 // ok
-	global.behaviors->altmap(KEY_U,		&global.FnPressed, KEY_U,	KEY_MOVE);			// I183 // ok
-	global.behaviors->altmap(KEY_I,		&global.FnPressed, KEY_I,	KEY_EDIT);			// I184 // ok
-	global.behaviors->altmap(KEY_O,		&global.FnPressed, KEY_O,	KEY_ALTERASE);			// I230 // ok
-	global.behaviors->altmap(KEY_P,		&global.FnPressed, KEY_P,	KEY_BASSBOOST);			// I217 // ok
-	global.behaviors->altmap(KEY_APOSTROPHE,	&global.FnPressed, KEY_APOSTROPHE,	KEY_UWB);	// I247 // ok
-	global.behaviors->altmap(KEY_A,		&global.FnPressed, KEY_A,	KEY_QUESTION);			// I222 // ok
-	global.behaviors->altmap(KEY_S,		&global.FnPressed, KEY_S,	KEY_UNKNOWN);			// I248 // ok
-	global.behaviors->altmap(KEY_D,		&global.FnPressed, KEY_D,	KEY_SOUND);			// I221 // ok
-	global.behaviors->altmap(KEY_F,		&global.FnPressed, KEY_F,	KEY_HP);			// I219 // ok
-	global.behaviors->altmap(KEY_G,		&global.FnPressed, KEY_G,	KEY_RO);			// I249- AB11 (89)
-	global.behaviors->altmap(KEY_H,		&global.FnPressed, KEY_H,	KEY_KPJPCOMMA);			// I250- JPCM (95)
-	global.behaviors->altmap(KEY_J,		&global.FnPressed, KEY_J,	KEY_YEN);			// I251- AE13 (124)
-	global.behaviors->altmap(KEY_K,		&global.FnPressed, KEY_K,	KEY_F19);			// I252- FK19 (189)
-	global.behaviors->altmap(KEY_L,		&global.FnPressed, KEY_L,	KEY_F24);			// I253- FK24 (194)
-	global.behaviors->altmap(KEY_COMMA,	&global.FnPressed, KEY_COMMA,	KEY_SEMICOLON);
-	global.behaviors->altmap(KEY_DOT,	&global.FnPressed, KEY_DOT,	KEY_SLASH);
-	global.behaviors->altmap(KEY_Z,		&global.FnPressed, KEY_Z,	KEY_EQUAL);
-	global.behaviors->altmap(KEY_X,		&global.FnPressed, KEY_X,	KEY_MINUS);
-	global.behaviors->altmap(KEY_C,		&global.FnPressed, KEY_C,	KEY_LEFTBRACE);
-	global.behaviors->altmap(KEY_V,		&global.FnPressed, KEY_V,	KEY_RIGHTBRACE);
-	global.behaviors->altmap(KEY_B,		&global.FnPressed, KEY_B,	KEY_BACKSLASH);
-	global.behaviors->altmap(KEY_N,		&global.FnPressed, KEY_N,	KEY_GRAVE);
-	global.behaviors->altmap(KEY_M,		&global.FnPressed, KEY_M,	195);			// 228- MDSW (195)
-	global.behaviors->altmap(KEY_SPACE,	&global.FnPressed, KEY_SPACE,	KEY_COMPOSE);
+	global.behaviors->altmap(KEY_ESC,	&global.Fn.pressed, KEY_ESC,	KEY_SYSRQ);
+	global.behaviors->altmap(KEY_PAUSE,	&global.Fn.pressed, KEY_PAUSE,	KEY_SCALE);		global.behaviors->script(KEY_BRIGHTNESSUP, &global.settings.brightness);
+	//global.behaviors->altmap(KEY_BRIGHTNESSUP,	&global.Fn.pressed, KEY_BRIGHTNESSUP,	KEY_BRIGHTNESSDOWN);
+	global.behaviors->altmap(KEY_F11,	&global.Fn.pressed, KEY_F11,	KEY_F12);
+	global.behaviors->altmap(KEY_1,		&global.Fn.pressed, KEY_1,	KEY_F1);
+	global.behaviors->altmap(KEY_2,		&global.Fn.pressed, KEY_2,	KEY_F2);
+	global.behaviors->altmap(KEY_3,		&global.Fn.pressed, KEY_3,	KEY_F3);
+	global.behaviors->altmap(KEY_4,		&global.Fn.pressed, KEY_4,	KEY_F4);
+	global.behaviors->altmap(KEY_5,		&global.Fn.pressed, KEY_5,	KEY_F5);
+	global.behaviors->altmap(KEY_6,		&global.Fn.pressed, KEY_6,	KEY_F6);
+	global.behaviors->altmap(KEY_7,		&global.Fn.pressed, KEY_7,	KEY_F7);
+	global.behaviors->altmap(KEY_8,		&global.Fn.pressed, KEY_8,	KEY_F8);
+	global.behaviors->altmap(KEY_9,		&global.Fn.pressed, KEY_9,	KEY_F9);
+	global.behaviors->altmap(KEY_0,		&global.Fn.pressed, KEY_0,	KEY_F10);
+	global.behaviors->altmap(KEY_TAB,	&global.Fn.pressed, KEY_TAB,	KEY_CAPSLOCK);
+	global.behaviors->altmap(KEY_Q,		&global.Fn.pressed, KEY_Q,	KEY_MACRO);			// I120 // ok
+	global.behaviors->altmap(KEY_W,		&global.Fn.pressed, KEY_W,	KEY_KPCOMMA);			// I129 // ok
+	global.behaviors->altmap(KEY_E,		&global.Fn.pressed, KEY_E,	KEY_SETUP);			// I149 // ok
+	global.behaviors->altmap(KEY_R,		&global.Fn.pressed, KEY_R,	KEY_DELETEFILE);		// I154 // ok
+	global.behaviors->altmap(KEY_T,		&global.Fn.pressed, KEY_T,	KEY_CLOSECD);			// I168 // ok
+	global.behaviors->altmap(KEY_Y,		&global.Fn.pressed, KEY_Y,	KEY_ISO);			// I178 // ok
+	global.behaviors->altmap(KEY_U,		&global.Fn.pressed, KEY_U,	KEY_MOVE);			// I183 // ok
+	global.behaviors->altmap(KEY_I,		&global.Fn.pressed, KEY_I,	KEY_EDIT);			// I184 // ok
+	global.behaviors->altmap(KEY_O,		&global.Fn.pressed, KEY_O,	KEY_ALTERASE);			// I230 // ok
+	global.behaviors->altmap(KEY_P,		&global.Fn.pressed, KEY_P,	KEY_BASSBOOST);			// I217 // ok
+	global.behaviors->altmap(KEY_APOSTROPHE,	&global.Fn.pressed, KEY_APOSTROPHE,	KEY_UWB);	// I247 // ok
+	global.behaviors->altmap(KEY_A,		&global.Fn.pressed, KEY_A,	KEY_QUESTION);			// I222 // ok
+	global.behaviors->altmap(KEY_S,		&global.Fn.pressed, KEY_S,	KEY_UNKNOWN);			// I248 // ok
+	global.behaviors->altmap(KEY_D,		&global.Fn.pressed, KEY_D,	KEY_SOUND);			// I221 // ok
+	global.behaviors->altmap(KEY_F,		&global.Fn.pressed, KEY_F,	KEY_HP);			// I219 // ok
+	global.behaviors->altmap(KEY_G,		&global.Fn.pressed, KEY_G,	KEY_RO);			// I249- AB11 (89)
+	global.behaviors->altmap(KEY_H,		&global.Fn.pressed, KEY_H,	KEY_KPJPCOMMA);			// I250- JPCM (95)
+	global.behaviors->altmap(KEY_J,		&global.Fn.pressed, KEY_J,	KEY_YEN);			// I251- AE13 (124)
+	global.behaviors->altmap(KEY_K,		&global.Fn.pressed, KEY_K,	KEY_F19);			// I252- FK19 (189)
+	global.behaviors->altmap(KEY_L,		&global.Fn.pressed, KEY_L,	KEY_F24);			// I253- FK24 (194)
+	global.behaviors->altmap(KEY_COMMA,	&global.Fn.pressed, KEY_COMMA,	KEY_SEMICOLON);
+	global.behaviors->altmap(KEY_DOT,	&global.Fn.pressed, KEY_DOT,	KEY_SLASH);
+	global.behaviors->altmap(KEY_Z,		&global.Fn.pressed, KEY_Z,	KEY_EQUAL);
+	global.behaviors->altmap(KEY_X,		&global.Fn.pressed, KEY_X,	KEY_MINUS);
+	global.behaviors->altmap(KEY_C,		&global.Fn.pressed, KEY_C,	KEY_LEFTBRACE);
+	global.behaviors->altmap(KEY_V,		&global.Fn.pressed, KEY_V,	KEY_RIGHTBRACE);
+	global.behaviors->altmap(KEY_B,		&global.Fn.pressed, KEY_B,	KEY_BACKSLASH);
+	global.behaviors->altmap(KEY_N,		&global.Fn.pressed, KEY_N,	KEY_GRAVE);
+	global.behaviors->altmap(KEY_M,		&global.Fn.pressed, KEY_M,	195);			// 228- MDSW (195)
+	global.behaviors->altmap(KEY_SPACE,	&global.Fn.pressed, KEY_SPACE,	KEY_COMPOSE);
 	
 
 	global.gamepad = new UinputDevice("/dev/uinput", BUS_USB, "pyraInput Gamepad", 1, 1, 1, {
@@ -378,6 +415,45 @@ void handleArgs(char const** argv, unsigned int argc, Settings& settings) {
 using SettingHandler = std::function<void(std::string const&,Settings&)>;
 using SettingHandlerMap = std::unordered_map<std::string, SettingHandler>;
 SettingHandlerMap const SETTING_HANDLERS = {
+	{ "scripts.brightness.normal", [](std::string const& value, Settings& settings){
+		settings.brightness.normal = value;
+	} },
+	{ "scripts.brightness.Fn", [](std::string const& value, Settings& settings){
+		settings.brightness.Fn = value;
+	} },
+	{ "scripts.brightness.Shift", [](std::string const& value, Settings& settings){
+		settings.brightness.Shift = value;
+	} },
+	{ "scripts.brightness.FnShift", [](std::string const& value, Settings& settings){
+		settings.brightness.FnShift = value;
+	} },
+	{ "scripts.brightness.Alt", [](std::string const& value, Settings& settings){
+		settings.brightness.Alt = value;
+	} },
+	{ "scripts.brightness.Ctrl", [](std::string const& value, Settings& settings){
+		settings.brightness.Ctrl = value;
+	} },
+	{ "scripts.brightness.AltCtrl", [](std::string const& value, Settings& settings){
+		settings.brightness.AltCtrl = value;
+	} },
+	{ "scripts.brightness.FnAlt", [](std::string const& value, Settings& settings){
+		settings.brightness.FnAlt = value;
+	} },
+	{ "scripts.brightness.FnCtrl", [](std::string const& value, Settings& settings){
+		settings.brightness.FnCtrl = value;
+	} },
+	{ "scripts.brightness.ShiftAlt", [](std::string const& value, Settings& settings){
+		settings.brightness.ShiftAlt = value;
+	} },
+	{ "scripts.brightness.ShiftCtrl", [](std::string const& value, Settings& settings){
+		settings.brightness.ShiftCtrl = value;
+	} },
+	{ "scripts.brightness.FnShiftAlt", [](std::string const& value, Settings& settings){
+		settings.brightness.FnShiftAlt = value;
+	} },
+	{ "scripts.brightness.FnShiftCtrl", [](std::string const& value, Settings& settings){
+		settings.brightness.FnShiftCtrl = value;
+	} },
 	{ "gamepad.export", [](std::string const& value, Settings& settings){
 		settings.exportGamepad = (value != "0");
 	} },
@@ -626,11 +702,23 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::gp
 	b.type = KeyBehavior::GPMAPPED;
 	b.alternative = gamepad;
 }
+template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::gpmap2(unsigned int code, unsigned int gamepad, bool* self, LeftRight* pair) {
+	auto& b = behaviors.at(code - FIRST_KEY);
+	b.type = KeyBehavior::GPMAP2;
+	b.alternative = gamepad;
+	b.flag  = self;
+	b.lr	= pair;
+}
 
 template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::gphat(unsigned int code, unsigned int gamepad) {
 	auto& b = behaviors.at(code - FIRST_KEY);
 	b.type = KeyBehavior::GPHAT;
 	b.alternative = gamepad;
+}
+template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::script(unsigned int code, Scripts *s) {
+	auto& b = behaviors.at(code - FIRST_KEY);
+	b.type = KeyBehavior::SCRIPT;
+	b.scripts = s;
 }
 
 template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::handle(unsigned int code, int value) {
@@ -650,6 +738,16 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::ha
 		kb.function(value);
 		break;
 	case KeyBehavior::GPMAPPED:
+		if (global.settings.exportKeypad)
+			global.keyboard->send(EV_KEY, code, value);
+		if (global.settings.exportGamepad) {
+			global.gamepad->send(EV_KEY, kb.alternative, value);
+			global.gamepad->send(EV_SYN, 0, 0);
+		}
+		break;
+	case KeyBehavior::GPMAP2:
+		*kb.flag = (value==1);
+		kb.lr->pressed = kb.lr->left || kb.lr->right;
 		if (global.settings.exportKeypad)
 			global.keyboard->send(EV_KEY, code, value);
 		if (global.settings.exportGamepad) {
@@ -678,5 +776,50 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::ha
 			global.gamepad->send(EV_ABS, ABS_HAT0Y, global.haty*65535);
 			global.gamepad->send(EV_SYN, 0, 0);
 		}
+		break;
+	case KeyBehavior::SCRIPT:
+		if (value!=1) return;
+		int ret = 0;
+		if (global.Shift.pressed && global.Ctrl.pressed && global.Fn.pressed) {
+			if (kb.scripts->FnShiftCtrl!="")
+				ret=system(kb.scripts->FnShiftCtrl.c_str());
+		} else if (global.Shift.pressed && global.Alt.pressed && global.Fn.pressed) {
+			if (kb.scripts->FnShiftAlt!="")
+				ret=system(kb.scripts->FnShiftAlt.c_str());
+		} else if (global.Shift.pressed && global.Alt.pressed) {
+			if (kb.scripts->ShiftAlt!="")
+				ret=system(kb.scripts->ShiftAlt.c_str());
+		} else if (global.Shift.pressed && global.Ctrl.pressed) {
+			if (kb.scripts->ShiftCtrl!="")
+				ret=system(kb.scripts->ShiftCtrl.c_str());
+		} else if (global.Fn.pressed && global.Alt.pressed) {
+			if (kb.scripts->FnAlt!="")
+				ret=system(kb.scripts->FnAlt.c_str());
+		} else if (global.Fn.pressed && global.Ctrl.pressed) {
+			if (kb.scripts->FnCtrl!="")
+				ret=system(kb.scripts->FnCtrl.c_str());
+		} else if (global.Alt.pressed && global.Ctrl.pressed) {
+			if (kb.scripts->AltCtrl!="")
+				ret=system(kb.scripts->AltCtrl.c_str());
+		} else if (global.Fn.pressed && global.Shift.pressed) {
+			if (kb.scripts->FnShift!="")
+				ret=system(kb.scripts->FnShift.c_str());
+		} else if (global.Alt.pressed) {
+			if (kb.scripts->Alt!="")
+				ret=system(kb.scripts->Alt.c_str());
+		} else if (global.Alt.pressed) {
+			if (kb.scripts->Alt!="")
+				ret=system(kb.scripts->Alt.c_str());
+		} else if (global.Shift.pressed) {
+			if (kb.scripts->Shift!="")
+				ret=system(kb.scripts->Shift.c_str());
+		} else if (global.Fn.pressed) {
+			if (kb.scripts->Fn!="")
+				ret=system(kb.scripts->Fn.c_str());
+		} else {
+			if (kb.scripts->normal!="")
+				ret=system(kb.scripts->normal.c_str());
+		}
+		break;
 	};
 }
