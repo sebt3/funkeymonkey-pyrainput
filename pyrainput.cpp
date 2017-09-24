@@ -418,40 +418,40 @@ SettingHandlerMap const SETTING_HANDLERS = {
 	{ "scripts.brightness.normal", [](std::string const& value, Settings& settings){
 		settings.brightness.normal = value;
 	} },
-	{ "scripts.brightness.Fn", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.fn", [](std::string const& value, Settings& settings){
 		settings.brightness.Fn = value;
 	} },
-	{ "scripts.brightness.Shift", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.shift", [](std::string const& value, Settings& settings){
 		settings.brightness.Shift = value;
 	} },
-	{ "scripts.brightness.FnShift", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.fnshift", [](std::string const& value, Settings& settings){
 		settings.brightness.FnShift = value;
 	} },
-	{ "scripts.brightness.Alt", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.alt", [](std::string const& value, Settings& settings){
 		settings.brightness.Alt = value;
 	} },
-	{ "scripts.brightness.Ctrl", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.ctrl", [](std::string const& value, Settings& settings){
 		settings.brightness.Ctrl = value;
 	} },
-	{ "scripts.brightness.AltCtrl", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.altctrl", [](std::string const& value, Settings& settings){
 		settings.brightness.AltCtrl = value;
 	} },
-	{ "scripts.brightness.FnAlt", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.fnalt", [](std::string const& value, Settings& settings){
 		settings.brightness.FnAlt = value;
 	} },
-	{ "scripts.brightness.FnCtrl", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.fnctrl", [](std::string const& value, Settings& settings){
 		settings.brightness.FnCtrl = value;
 	} },
-	{ "scripts.brightness.ShiftAlt", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.shiftalt", [](std::string const& value, Settings& settings){
 		settings.brightness.ShiftAlt = value;
 	} },
-	{ "scripts.brightness.ShiftCtrl", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.shiftctrl", [](std::string const& value, Settings& settings){
 		settings.brightness.ShiftCtrl = value;
 	} },
-	{ "scripts.brightness.FnShiftAlt", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.fnshiftalt", [](std::string const& value, Settings& settings){
 		settings.brightness.FnShiftAlt = value;
 	} },
-	{ "scripts.brightness.FnShiftCtrl", [](std::string const& value, Settings& settings){
+	{ "scripts.brightness.fnshiftctrl", [](std::string const& value, Settings& settings){
 		settings.brightness.FnShiftCtrl = value;
 	} },
 	{ "gamepad.export", [](std::string const& value, Settings& settings){
