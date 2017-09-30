@@ -55,3 +55,17 @@ Then reload configuration with:
 ```
 systemctl reload pyrainput
 ```
+
+### command lines for dbp packages
+
+
+```
+sudo /usr/sbin/pyrainputctl enable gamepad
+sudo /usr/sbin/pyrainputctl disable gamepad
+
+sudo /usr/sbin/pyrainputctl enable keypad
+sudo /usr/sbin/pyrainputctl disable keypad
+
+sudo /usr/sbin/pyrainputctl enable mouse
+sudo /usr/sbin/pyrainputctl disable mouse
+```
