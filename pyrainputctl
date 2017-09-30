@@ -2,42 +2,37 @@
 
 
 CFG=/etc/pyrainput.cfg
-
 help() {
 	cat<<ENDHELP
 $1 {enable|disable} {keypad|gamepad|mouse}
 ENDHELP
 }
-
 unsetValue() {
 	local key=$1
 	[ ! -e $CFG ] && touch $CFG
 	sed -ie '/^'"$key"'/d' $CFG
 }
-
 setValue() {
 	local key=$1
 	local val=$2
-
 	unsetValue "$key"
 	echo "$key = $val">>$CFG
 }
 
-case "$1-$2" in
-disable-keypad)
-	setValue keypad.export 0;;
-enable-keypad)
-	unsetValue keypad.export;;
-disable-gamepad)
-	setValue gamepad.export 0;;
-enable-gamepad)
-	unsetValue gamepad.export;;
-disable-mouse)
-	setValue mouse.export 0;;
-enable-mouse)
-	unsetValue mouse.export;;
-*)
-	help $0;exit 1;;
+case "$2" in
+keypad|[kK][eE][yY]*)
+	TARGET=keypad.export;;
+gamepad|[gG][aA][mM][eE]*)
+	TARGET=gamepad.export;;
+mouse|[mM][oO][uU][sS][eE])
+	TARGET=mouse.export;;
+*)	help $0;exit 1;;
 esac
-
+case $1 in
+enable|[eE][nN][aA]*)
+	setValue $TARGET 1;;
+disable|[dD][iI][sS]*)
+	setValue $TARGET 0;;
+*)	help $0;exit 1;;
+esac
 systemctl reload pyrainput
