@@ -1,6 +1,16 @@
-funkeymonkey-pyrainput (0.1.2) UNRELEASED; urgency=low
+funkeymonkey-pyrainput (0.1.3) unstable; urgency=medium
 
+  [ Sébastien Huss ]
   * Initial release.
   * Updated to use "roles"
+  * fix TopLeft trigger behavior as [fn] key
+  * Added a joystick deadzone
+  * Changed brightness key behaviour
+  * Small fix
+  * added default behaviour for the brightness key
+  * Added pyrainputctl script
+  * addded sudoers
+  * updated README
+  * changed default behaviour for brightness key
 
- -- Sébastien Huss <sebastien.huss@gmail.com>  Fri, 15 Sep 2017 19:46:30 +0200
+ -- Pyra Dev <pyra-dev@pyra-handheld.com>  Mon, 02 Oct 2017 21:30:12 +0200
