@@ -281,8 +281,8 @@ void init(char const** argv, unsigned int argc) {
 	handleArgs(argv, argc, global.settings);
 	
 	global.settings.brightness.normal = "/usr/share/pyra/scripts/pyra-brightkey.sh screen up";
-	global.settings.brightness.Fn = "/usr/share/pyra/scripts/pyra-brightkey.sh screen down";
-	global.settings.brightness.Shift = "/usr/share/pyra/scripts/pyra-brightkey.sh key up";
+	global.settings.brightness.Shift = "/usr/share/pyra/scripts/pyra-brightkey.sh screen down";
+	global.settings.brightness.Fn = "/usr/share/pyra/scripts/pyra-brightkey.sh key up";
 	global.settings.brightness.FnShift = "/usr/share/pyra/scripts/pyra-brightkey.sh key down";
 
 	if(!global.settings.configFile.empty()) {
