@@ -61,6 +61,7 @@ private:
 		Type type;
 		int mapping;
 		int alternative;
+		bool pressed_as;
 		bool* flag;
 		LeftRight* lr;
 		Scripts *scripts;
@@ -728,7 +729,7 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::sc
 
 template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::handle(unsigned int code, int value) {
 	if (code <FIRST_KEY || code >LAST_KEY) return;
-	KeyBehavior const& kb = behaviors.at(code - FIRST_KEY);
+	auto& kb = behaviors.at(code - FIRST_KEY);
 	switch(kb.type) {
 	case KeyBehavior::PASSTHROUGH:
 		global.keyboard->send(EV_KEY, code, value);
@@ -737,7 +738,9 @@ template<int FIRST_KEY, int LAST_KEY> void KeyBehaviors<FIRST_KEY, LAST_KEY>::ha
 		global.keyboard->send(EV_KEY, kb.mapping, value);
 		break;
 	case KeyBehavior::ALTMAPPED:
-		global.keyboard->send(EV_KEY, *kb.flag ? kb.alternative : kb.mapping, value);
+		if(value==1)
+			kb.pressed_as = *kb.flag;
+		global.keyboard->send(EV_KEY, kb.pressed_as ? kb.alternative : kb.mapping, value);
 		break; 
 	case KeyBehavior::COMPLEX:
 		kb.function(value);
