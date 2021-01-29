@@ -1,3 +1,7 @@
+# Warning
+This repo is archived. Please see https://dev.pyra-handheld.com/packages/funkeymonkey-pyrainput for newer developpement
+....
+
 # FunKeyMonkey-pyrainput
 
 A pyra input deamon based on FunKey-MonKey
